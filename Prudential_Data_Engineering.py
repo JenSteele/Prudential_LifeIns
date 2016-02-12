@@ -61,18 +61,21 @@ for i in lower_trunc:
         if Cont[i][j] > mean:
             Cont[nname][j] = 1
         print j    
+
 #For categorical variables, determine the number of categories for each variable, 
-#and create dummy column for each variable category
+#and create a dummy column for each variable category (except for the last category)
 
-Cat = traindf['Id']
+#Cat = traindf[Categorical]
 
-for i in Categorical:
-    y=traindf[i]
-    name=y.name
-    Cat[name]=y
-    Cat_label = Cat[name].unique()
-    for j in range(Cat_label):
-        Cat_named = name + Cat_label[j]
-        if Cat[name] == Cat_label[j]:
-            Cat[Cat_named]
-            print j
+for i in Categorical[4:8]:
+    Cat[i] = traindf[i]
+    name=Cat[i].name
+    Cat_label = Cat[name].unique()    
+    for j in range(0,len(Cat_label)-1):
+        Cat_clabel = name + '_c' + str(Cat_label[j])
+        Cat[Cat_clabel] = 0
+        print Cat_clabel
+        for k in range(0,len(Cat[i])):
+            if Cat[i][k] == Cat_label[j]:
+                Cat[Cat_clabel][k] = 1       
+
