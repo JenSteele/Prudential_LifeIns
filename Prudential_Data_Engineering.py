@@ -2,10 +2,10 @@ from numpy import loadtxt, zeros, ones, array, linspace, logspace
 from pylab import scatter, show, title, xlabel, ylabel, plot, contour
 import csv
 import pandas as pd
+import numpy as np
 import matplotlib.pyplot as plt
+import math
 traindf = pd.read_csv("train.csv")
-traindf.head(n=10)
-
 descrip = traindf.describe()
 
 Categorical = ['Product_Info_1', 'Product_Info_2', 'Product_Info_3', 'Product_Info_5', 
@@ -30,15 +30,31 @@ Continuous = ['Product_Info_4', 'Ins_Age', 'Ht', 'Wt', 'BMI', 'Employment_Info_1
 
 Discrete = ['Medical_History_1', 'Medical_History_10', 'Medical_History_15', 
 'Medical_History_24', 'Medical_History_32']
+Cate = traindf[Categorical].copy()
+Cont = traindf[Continuous].copy()
+Disc = traindf[Discrete].copy()
 
 
+lower_trunc = []
+upper_trunc = []
+Cont.is_copy = False        
+for i in Continuous:
+    y=traindf[i]
+    name = y.name
+    if y.dtype == 'float64':
+        if descrip[name]['75%'] == descrip[name]['max']:
+            upper_trunc.append(name)
+            print upper_trunc + 'upper truncated'
+        if descrip[name]['min'] == descrip[name]['25%']:
+            lower_trunc.append(name)
+            print name + ' lower truncated'
 
+for i in Cont:
+    if Cont[i].mean != 0:
+        Cont[i] -= Cont[i].mean()
+    if Cont[i].std != 1:
+        Cont[i] /= Cont[i].std()
 
-#Starting with continuous variables, check for truncation and if truncated re-name as discrete variable 
-#with oldname_t = 1 if variable is greater than mean, and oldname_t = 0 if variable is <= mean
-lower_trunc=[]
-upper_trunc=[]
-Cont = traindf[Continuous]
         
 for i in Continuous:
     y=traindf[i]
@@ -51,31 +67,25 @@ for i in Continuous:
             lower_trunc.append(name)
             print name + ' lower truncated'
 
-
+count = []
 for i in lower_trunc:
-    mean = descrip[i]['mean']
+    median = descrip[i]['50%']
     nname = i + '_d'
     Cont[nname] = 0
-    print i
-    for j in range(0,len(Cont[i])):
-        if Cont[i][j] > mean:
-            Cont[nname][j] = 1
-        print j    
+    Cont[nname][Cont[i]>median] = 1
+    Cont[nname][Cont[i].isnull()] = None
 
-#For categorical variables, determine the number of categories for each variable, 
-#and create a dummy column for each variable category (except for the last category)
+#Categorical Variables - make into dummy variables ensuring n-1 categories:
+Categorical_dummies = pd.DataFrame(index=Cate.index)
+low_count = {}
+for i in Categorical:
+    test1 = pd.get_dummies(Cate[i],prefix=i)
+    dummy_count = test1.sum()
+    for j in range(len(dummy_count)):
+        if dummy_count[j]<100:
+            print 'Note:  Low dummy count of ' + str(int(dummy_count[j])) + ' for ' + str(test1.columns[j])
+            low_count[test1.columns[j]] = int(dummy_count[j])
+    Categorical_dummies = pd.concat([Categorical_dummies,test1],axis=1)
 
-#Cat = traindf[Categorical]
-
-for i in Categorical[4:8]:
-    Cat[i] = traindf[i]
-    name=Cat[i].name
-    Cat_label = Cat[name].unique()    
-    for j in range(0,len(Cat_label)-1):
-        Cat_clabel = name + '_c' + str(Cat_label[j])
-        Cat[Cat_clabel] = 0
-        print Cat_clabel
-        for k in range(0,len(Cat[i])):
-            if Cat[i][k] == Cat_label[j]:
-                Cat[Cat_clabel][k] = 1       
-
+#Combine continuous, categorical and discrete variables into one dataset:
+Cleaner_Data = pd.concat([Cont,Categorical_dummies,Disc], axis = 1)
